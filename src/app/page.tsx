@@ -186,9 +186,13 @@ export default function Page() {
           </h1>
           {fileLoaded && (
             <>
+              <span
+                className="text-lg font-semibold text-blue-100 bg-blue-900/50 border border-blue-700/60 px-2 py-0.5 rounded truncate max-w-[24rem]"
+                title={fileName ?? undefined}
+              >
+                {fileName}
+              </span>
               <span className="text-xs text-neutral-400 tabular-nums">
-                <span className="text-neutral-200">{fileName}</span>
-                <span className="mx-2 text-neutral-600">·</span>
                 {rows.length} {rows.length === 1 ? "row" : "rows"}
                 {accountColumn && (
                   <>
