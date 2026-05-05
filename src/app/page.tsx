@@ -39,6 +39,7 @@ function reducer(state: State, action: Action): State {
         ...state,
         accountColumn: action.column,
         statusByRowId: {},
+        hiddenColumns: state.hiddenColumns.filter((c) => c !== action.column),
       };
     case "CYCLE_STATUS": {
       const current = state.statusByRowId[action.rowId] ?? "unchecked";
@@ -59,6 +60,7 @@ function reducer(state: State, action: Action): State {
         },
       };
     case "HIDE_COLUMN":
+      if (action.column === state.accountColumn) return state;
       return state.hiddenColumns.includes(action.column)
         ? state
         : { ...state, hiddenColumns: [...state.hiddenColumns, action.column] };
@@ -139,16 +141,18 @@ export default function Page() {
   const renderCols: RenderCol[] = useMemo(() => {
     if (!accountColumn) return [];
     const hidden = new Set(hiddenColumns);
-    const visible = headers.filter((h) => !hidden.has(h));
+    // Account column is always visible — it's the grouping key.
+    const visible = headers.filter(
+      (h) => h === accountColumn || !hidden.has(h),
+    );
     const cols: RenderCol[] = [];
-    if (visible.includes(accountColumn)) {
-      for (const h of visible) {
-        cols.push({ kind: "data", name: h });
-        if (h === accountColumn) cols.push({ kind: "statusDropdown" });
-      }
-    } else {
-      cols.push({ kind: "statusDropdown" });
-      for (const h of visible) cols.push({ kind: "data", name: h });
+    for (const h of visible) {
+      cols.push({
+        kind: "data",
+        name: h,
+        isAccountColumn: h === accountColumn,
+      });
+      if (h === accountColumn) cols.push({ kind: "statusDropdown" });
     }
     return cols;
   }, [headers, hiddenColumns, accountColumn]);

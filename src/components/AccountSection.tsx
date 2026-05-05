@@ -74,18 +74,27 @@ export default function AccountSection({
                     >
                       <span className="inline-flex items-center gap-1">
                         <span className="truncate">{col.name}</span>
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onHideColumn(col.name);
-                          }}
-                          className="text-neutral-500 hover:text-rose-400 px-1 rounded leading-none"
-                          aria-label={`Hide column ${col.name}`}
-                          title={`Hide column ${col.name}`}
-                        >
-                          ×
-                        </button>
+                        {col.isAccountColumn ? (
+                          <span
+                            className="text-[10px] px-1 rounded bg-blue-900/60 text-blue-200 border border-blue-700/60"
+                            title="Account column (cannot be hidden)"
+                          >
+                            account
+                          </span>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onHideColumn(col.name);
+                            }}
+                            className="text-neutral-500 hover:text-rose-400 px-1 rounded leading-none"
+                            aria-label={`Hide column ${col.name}`}
+                            title={`Hide column ${col.name}`}
+                          >
+                            ×
+                          </button>
+                        )}
                       </span>
                     </th>
                   ) : (

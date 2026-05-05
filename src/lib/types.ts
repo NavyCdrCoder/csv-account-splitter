@@ -42,7 +42,7 @@ export interface Group {
 }
 
 export type RenderCol =
-  | { kind: "data"; name: string }
+  | { kind: "data"; name: string; isAccountColumn: boolean }
   | { kind: "statusDropdown" };
 
 export const initialState: State = {
