@@ -31,6 +31,7 @@ function reducer(state: State, action: Action): State {
         parseError: null,
         hiddenColumns: [],
         showResetReminder: false,
+        previousSession: null,
       };
     }
     case "SET_ACCOUNT_COLUMN":
@@ -68,10 +69,40 @@ function reducer(state: State, action: Action): State {
       };
     case "SHOW_ALL_COLUMNS":
       return { ...state, hiddenColumns: [] };
-    case "RESET":
-      return { ...initialState, showResetReminder: true };
+    case "RESET": {
+      const hadFile = state.fileName !== null && state.rows.length > 0;
+      return {
+        ...initialState,
+        showResetReminder: true,
+        previousSession: hadFile
+          ? {
+              fileName: state.fileName!,
+              rows: state.rows,
+              headers: state.headers,
+              accountColumn: state.accountColumn,
+              statusByRowId: state.statusByRowId,
+              hiddenColumns: state.hiddenColumns,
+            }
+          : null,
+      };
+    }
     case "DISMISS_RESET_REMINDER":
-      return { ...state, showResetReminder: false };
+      return { ...state, showResetReminder: false, previousSession: null };
+    case "RESTORE_PREVIOUS": {
+      const p = state.previousSession;
+      if (!p) return state;
+      return {
+        fileName: p.fileName,
+        rows: p.rows,
+        headers: p.headers,
+        accountColumn: p.accountColumn,
+        statusByRowId: p.statusByRowId,
+        hiddenColumns: p.hiddenColumns,
+        parseError: null,
+        showResetReminder: false,
+        previousSession: null,
+      };
+    }
     case "SET_ERROR":
       return { ...initialState, parseError: action.error };
   }
@@ -88,6 +119,7 @@ export default function Page() {
     parseError,
     hiddenColumns,
     showResetReminder,
+    previousSession,
   } = state;
 
   const groups: Group[] = useMemo(() => {
@@ -189,6 +221,24 @@ export default function Page() {
                 <span className="font-medium">Review Complete</span> to save the
                 reviewed CSV before uploading a new file.
               </p>
+              {previousSession && (
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  <span className="text-xs text-amber-200/70">
+                    Didn&apos;t save yet?
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => dispatch({ type: "RESTORE_PREVIOUS" })}
+                    className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium bg-amber-700/40 hover:bg-amber-700/70 text-amber-50 border border-amber-600"
+                    title={`Return to ${previousSession.fileName}`}
+                  >
+                    <span aria-hidden>←</span> Return to previous file
+                    <span className="text-amber-200/70 hidden sm:inline">
+                      ({previousSession.fileName})
+                    </span>
+                  </button>
+                </div>
+              )}
             </div>
             <button
               type="button"

@@ -2,6 +2,15 @@ export type Status = "unchecked" | "found" | "not_found" | "discrepancy";
 
 export type Row = Record<string, string>;
 
+export interface SavedSession {
+  fileName: string;
+  rows: Row[];
+  headers: string[];
+  accountColumn: string | null;
+  statusByRowId: Record<string, Status>;
+  hiddenColumns: string[];
+}
+
 export interface State {
   fileName: string | null;
   rows: Row[];
@@ -11,6 +20,7 @@ export interface State {
   parseError: string | null;
   hiddenColumns: string[];
   showResetReminder: boolean;
+  previousSession: SavedSession | null;
 }
 
 export type Action =
@@ -23,6 +33,7 @@ export type Action =
   | { type: "SHOW_ALL_COLUMNS" }
   | { type: "RESET" }
   | { type: "DISMISS_RESET_REMINDER" }
+  | { type: "RESTORE_PREVIOUS" }
   | { type: "SET_ERROR"; error: string };
 
 export interface Group {
@@ -43,6 +54,7 @@ export const initialState: State = {
   parseError: null,
   hiddenColumns: [],
   showResetReminder: false,
+  previousSession: null,
 };
 
 export function makeRowId(accountValue: string, rowIndex: number) {
