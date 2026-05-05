@@ -1,27 +1,55 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import type { Group, Status } from "@/lib/types";
 import RowStatusToggle from "./RowStatusToggle";
+import RowStatusDropdown from "./RowStatusDropdown";
 
 interface Props {
   group: Group;
   headers: string[];
+  hiddenColumns: string[];
+  accountColumn: string;
   defaultExpanded: boolean;
   statusByRowId: Record<string, Status>;
   onCycle: (rowId: string) => void;
+  onSetStatus: (rowId: string, status: Status) => void;
+  onHideColumn: (column: string) => void;
 }
+
+type RenderCol =
+  | { kind: "data"; name: string }
+  | { kind: "statusDropdown" };
 
 export default function AccountSection({
   group,
   headers,
+  hiddenColumns,
+  accountColumn,
   defaultExpanded,
   statusByRowId,
   onCycle,
+  onSetStatus,
+  onHideColumn,
 }: Props) {
   const [expanded, setExpanded] = useState(defaultExpanded);
   const displayName = group.name || "(blank)";
   const rowLabel = group.items.length === 1 ? "row" : "rows";
+
+  const renderCols: RenderCol[] = useMemo(() => {
+    const visible = headers.filter((h) => !hiddenColumns.includes(h));
+    const cols: RenderCol[] = [];
+    if (visible.includes(accountColumn)) {
+      for (const h of visible) {
+        cols.push({ kind: "data", name: h });
+        if (h === accountColumn) cols.push({ kind: "statusDropdown" });
+      }
+    } else {
+      cols.push({ kind: "statusDropdown" });
+      for (const h of visible) cols.push({ kind: "data", name: h });
+    }
+    return cols;
+  }, [headers, hiddenColumns, accountColumn]);
 
   return (
     <section className="border border-neutral-800 rounded overflow-hidden">
@@ -44,38 +72,76 @@ export default function AccountSection({
           <table className="w-full text-xs font-mono border-collapse">
             <thead>
               <tr className="bg-neutral-800/60 text-neutral-300">
-                {headers.map((h) => (
-                  <th
-                    key={h}
-                    className="text-left px-2 py-1 border-b border-neutral-700 font-medium whitespace-nowrap"
-                  >
-                    {h}
-                  </th>
-                ))}
+                {renderCols.map((col, idx) =>
+                  col.kind === "data" ? (
+                    <th
+                      key={`h-${idx}`}
+                      className="text-left px-2 py-1 border-b border-neutral-700 font-medium whitespace-nowrap"
+                    >
+                      <span className="inline-flex items-center gap-1">
+                        <span className="truncate">{col.name}</span>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onHideColumn(col.name);
+                          }}
+                          className="text-neutral-500 hover:text-rose-400 px-1 rounded leading-none"
+                          aria-label={`Hide column ${col.name}`}
+                          title={`Hide column ${col.name}`}
+                        >
+                          ×
+                        </button>
+                      </span>
+                    </th>
+                  ) : (
+                    <th
+                      key={`h-${idx}`}
+                      className="text-left px-2 py-1 border-b border-neutral-700 font-medium whitespace-nowrap"
+                    >
+                      Set status
+                    </th>
+                  ),
+                )}
                 <th className="text-left px-2 py-1 border-b border-neutral-700 font-medium whitespace-nowrap">
                   Status
                 </th>
               </tr>
             </thead>
             <tbody>
-              {group.items.map(({ row, rowId }) => (
-                <tr key={rowId} className="even:bg-neutral-900/40">
-                  {headers.map((h) => (
-                    <td
-                      key={h}
-                      className="px-2 py-1 border-b border-neutral-800/60 align-top whitespace-pre-wrap break-all"
-                    >
-                      {row[h] ?? ""}
+              {group.items.map(({ row, rowId }) => {
+                const currentStatus = statusByRowId[rowId] ?? "unchecked";
+                return (
+                  <tr key={rowId} className="even:bg-neutral-900/40">
+                    {renderCols.map((col, idx) =>
+                      col.kind === "data" ? (
+                        <td
+                          key={`d-${idx}`}
+                          className="px-2 py-1 border-b border-neutral-800/60 align-top whitespace-pre-wrap break-all"
+                        >
+                          {row[col.name] ?? ""}
+                        </td>
+                      ) : (
+                        <td
+                          key={`d-${idx}`}
+                          className="px-2 py-1 border-b border-neutral-800/60 align-top"
+                        >
+                          <RowStatusDropdown
+                            status={currentStatus}
+                            onSetStatus={(s) => onSetStatus(rowId, s)}
+                          />
+                        </td>
+                      ),
+                    )}
+                    <td className="px-2 py-1 border-b border-neutral-800/60 align-top">
+                      <RowStatusToggle
+                        status={currentStatus}
+                        onCycle={() => onCycle(rowId)}
+                      />
                     </td>
-                  ))}
-                  <td className="px-2 py-1 border-b border-neutral-800/60 align-top">
-                    <RowStatusToggle
-                      status={statusByRowId[rowId] ?? "unchecked"}
-                      onCycle={() => onCycle(rowId)}
-                    />
-                  </td>
-                </tr>
-              ))}
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>

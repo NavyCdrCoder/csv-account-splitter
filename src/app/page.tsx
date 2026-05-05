@@ -27,6 +27,7 @@ function reducer(state: State, action: Action): State {
         accountColumn,
         statusByRowId: {},
         parseError: null,
+        hiddenColumns: [],
       };
     }
     case "SET_ACCOUNT_COLUMN":
@@ -45,6 +46,25 @@ function reducer(state: State, action: Action): State {
         },
       };
     }
+    case "SET_STATUS":
+      return {
+        ...state,
+        statusByRowId: {
+          ...state.statusByRowId,
+          [action.rowId]: action.status,
+        },
+      };
+    case "HIDE_COLUMN":
+      return state.hiddenColumns.includes(action.column)
+        ? state
+        : { ...state, hiddenColumns: [...state.hiddenColumns, action.column] };
+    case "SHOW_COLUMN":
+      return {
+        ...state,
+        hiddenColumns: state.hiddenColumns.filter((c) => c !== action.column),
+      };
+    case "SHOW_ALL_COLUMNS":
+      return { ...state, hiddenColumns: [] };
     case "RESET":
       return initialState;
     case "SET_ERROR":
@@ -54,8 +74,15 @@ function reducer(state: State, action: Action): State {
 
 export default function Page() {
   const [state, dispatch] = useReducer(reducer, initialState);
-  const { fileName, rows, headers, accountColumn, statusByRowId, parseError } =
-    state;
+  const {
+    fileName,
+    rows,
+    headers,
+    accountColumn,
+    statusByRowId,
+    parseError,
+    hiddenColumns,
+  } = state;
 
   const groups: Group[] = useMemo(() => {
     if (!accountColumn) return [];
@@ -152,6 +179,31 @@ export default function Page() {
           </div>
         )}
 
+        {fileLoaded && accountColumn && hiddenColumns.length > 0 && (
+          <div className="flex flex-wrap items-center gap-2 text-xs">
+            <span className="text-neutral-400">Hidden columns:</span>
+            {hiddenColumns.map((c) => (
+              <button
+                key={c}
+                type="button"
+                onClick={() => dispatch({ type: "SHOW_COLUMN", column: c })}
+                className="px-2 py-0.5 rounded border border-neutral-700 bg-neutral-900 hover:bg-neutral-800 text-neutral-200 inline-flex items-center gap-1"
+                title={`Show column ${c}`}
+              >
+                <span className="truncate max-w-[14rem]">{c}</span>
+                <span className="text-neutral-500">+</span>
+              </button>
+            ))}
+            <button
+              type="button"
+              onClick={() => dispatch({ type: "SHOW_ALL_COLUMNS" })}
+              className="ml-1 text-blue-400 hover:text-blue-300"
+            >
+              Show all
+            </button>
+          </div>
+        )}
+
         {fileLoaded && accountColumn && groups.length > 0 && (
           <div className="flex flex-col gap-3">
             {groups.map((group) => (
@@ -159,10 +211,18 @@ export default function Page() {
                 key={`${accountColumn}__${group.name}`}
                 group={group}
                 headers={headers}
+                hiddenColumns={hiddenColumns}
+                accountColumn={accountColumn}
                 defaultExpanded={defaultExpanded}
                 statusByRowId={statusByRowId}
                 onCycle={(rowId) =>
                   dispatch({ type: "CYCLE_STATUS", rowId })
+                }
+                onSetStatus={(rowId, status) =>
+                  dispatch({ type: "SET_STATUS", rowId, status })
+                }
+                onHideColumn={(column) =>
+                  dispatch({ type: "HIDE_COLUMN", column })
                 }
               />
             ))}

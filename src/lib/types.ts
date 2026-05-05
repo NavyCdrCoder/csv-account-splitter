@@ -9,12 +9,17 @@ export interface State {
   accountColumn: string | null;
   statusByRowId: Record<string, Status>;
   parseError: string | null;
+  hiddenColumns: string[];
 }
 
 export type Action =
   | { type: "LOAD"; fileName: string; rows: Row[]; headers: string[] }
   | { type: "SET_ACCOUNT_COLUMN"; column: string }
   | { type: "CYCLE_STATUS"; rowId: string }
+  | { type: "SET_STATUS"; rowId: string; status: Status }
+  | { type: "HIDE_COLUMN"; column: string }
+  | { type: "SHOW_COLUMN"; column: string }
+  | { type: "SHOW_ALL_COLUMNS" }
   | { type: "RESET" }
   | { type: "SET_ERROR"; error: string };
 
@@ -30,6 +35,7 @@ export const initialState: State = {
   accountColumn: null,
   statusByRowId: {},
   parseError: null,
+  hiddenColumns: [],
 };
 
 export function makeRowId(accountValue: string, rowIndex: number) {
