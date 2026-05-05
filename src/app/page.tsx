@@ -8,6 +8,7 @@ import ExportButton from "@/components/ExportButton";
 import {
   type Action,
   type Group,
+  type RenderCol,
   type State,
   autoPickAccountColumn,
   initialState,
@@ -102,6 +103,23 @@ export default function Page() {
       .map(([name, items]) => ({ name, items }))
       .sort((a, b) => a.name.localeCompare(b.name));
   }, [rows, accountColumn]);
+
+  const renderCols: RenderCol[] = useMemo(() => {
+    if (!accountColumn) return [];
+    const hidden = new Set(hiddenColumns);
+    const visible = headers.filter((h) => !hidden.has(h));
+    const cols: RenderCol[] = [];
+    if (visible.includes(accountColumn)) {
+      for (const h of visible) {
+        cols.push({ kind: "data", name: h });
+        if (h === accountColumn) cols.push({ kind: "statusDropdown" });
+      }
+    } else {
+      cols.push({ kind: "statusDropdown" });
+      for (const h of visible) cols.push({ kind: "data", name: h });
+    }
+    return cols;
+  }, [headers, hiddenColumns, accountColumn]);
 
   const fileLoaded = fileName !== null && rows.length > 0;
   const exportReady = fileLoaded && accountColumn !== null && groups.length > 0;
@@ -211,7 +229,10 @@ export default function Page() {
 
         {fileLoaded && accountColumn && hiddenColumns.length > 0 && (
           <div className="flex flex-wrap items-center gap-2 text-xs">
-            <span className="text-neutral-400">Hidden columns:</span>
+            <span className="text-neutral-400">
+              Hidden columns ({hiddenColumns.length} of {headers.length}, applied across all
+              accounts):
+            </span>
             {hiddenColumns.map((c) => (
               <button
                 key={c}
@@ -240,9 +261,7 @@ export default function Page() {
               <AccountSection
                 key={`${accountColumn}__${group.name}`}
                 group={group}
-                headers={headers}
-                hiddenColumns={hiddenColumns}
-                accountColumn={accountColumn}
+                renderCols={renderCols}
                 defaultExpanded={defaultExpanded}
                 statusByRowId={statusByRowId}
                 onCycle={(rowId) =>

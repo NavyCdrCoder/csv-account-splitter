@@ -1,15 +1,13 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import type { Group, Status } from "@/lib/types";
+import { useState } from "react";
+import type { Group, RenderCol, Status } from "@/lib/types";
 import RowStatusToggle from "./RowStatusToggle";
 import RowStatusDropdown from "./RowStatusDropdown";
 
 interface Props {
   group: Group;
-  headers: string[];
-  hiddenColumns: string[];
-  accountColumn: string;
+  renderCols: RenderCol[];
   defaultExpanded: boolean;
   statusByRowId: Record<string, Status>;
   onCycle: (rowId: string) => void;
@@ -17,15 +15,9 @@ interface Props {
   onHideColumn: (column: string) => void;
 }
 
-type RenderCol =
-  | { kind: "data"; name: string }
-  | { kind: "statusDropdown" };
-
 export default function AccountSection({
   group,
-  headers,
-  hiddenColumns,
-  accountColumn,
+  renderCols,
   defaultExpanded,
   statusByRowId,
   onCycle,
@@ -35,21 +27,6 @@ export default function AccountSection({
   const [expanded, setExpanded] = useState(defaultExpanded);
   const displayName = group.name || "(blank)";
   const rowLabel = group.items.length === 1 ? "row" : "rows";
-
-  const renderCols: RenderCol[] = useMemo(() => {
-    const visible = headers.filter((h) => !hiddenColumns.includes(h));
-    const cols: RenderCol[] = [];
-    if (visible.includes(accountColumn)) {
-      for (const h of visible) {
-        cols.push({ kind: "data", name: h });
-        if (h === accountColumn) cols.push({ kind: "statusDropdown" });
-      }
-    } else {
-      cols.push({ kind: "statusDropdown" });
-      for (const h of visible) cols.push({ kind: "data", name: h });
-    }
-    return cols;
-  }, [headers, hiddenColumns, accountColumn]);
 
   return (
     <section className="border border-neutral-800 rounded overflow-hidden">

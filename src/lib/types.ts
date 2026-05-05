@@ -30,6 +30,10 @@ export interface Group {
   items: Array<{ row: Row; rowId: string; rowIndex: number }>;
 }
 
+export type RenderCol =
+  | { kind: "data"; name: string }
+  | { kind: "statusDropdown" };
+
 export const initialState: State = {
   fileName: null,
   rows: [],
