@@ -27,17 +27,34 @@ export default function AccountSection({
   const [expanded, setExpanded] = useState(defaultExpanded);
   const displayName = group.name || "(blank)";
   const rowLabel = group.items.length === 1 ? "row" : "rows";
+  const allFound =
+    group.items.length > 0 &&
+    group.items.every(
+      ({ rowId }) => (statusByRowId[rowId] ?? "unchecked") === "found",
+    );
 
   return (
-    <section className="border border-neutral-800 rounded overflow-hidden">
+    <section
+      className={`border rounded overflow-hidden ${
+        allFound ? "border-emerald-600" : "border-neutral-800"
+      }`}
+    >
       <button
         type="button"
         onClick={() => setExpanded((e) => !e)}
-        className="w-full flex items-center justify-between gap-3 px-3 py-2 bg-neutral-900 hover:bg-neutral-800 text-left"
+        className={`w-full flex items-center justify-between gap-3 px-3 py-2 text-left transition-colors ${
+          allFound
+            ? "bg-emerald-700 hover:bg-emerald-600 text-emerald-50"
+            : "bg-neutral-900 hover:bg-neutral-800"
+        }`}
         aria-expanded={expanded}
       >
         <span className="font-medium truncate">{displayName}</span>
-        <span className="text-xs text-neutral-400 shrink-0 tabular-nums">
+        <span
+          className={`text-xs shrink-0 tabular-nums ${
+            allFound ? "text-emerald-100" : "text-neutral-400"
+          }`}
+        >
           {group.items.length} {rowLabel}
           <span className="ml-2 inline-block w-3 text-center">
             {expanded ? "−" : "+"}
