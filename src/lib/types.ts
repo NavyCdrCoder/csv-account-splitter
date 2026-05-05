@@ -34,6 +34,7 @@ export type Action =
   | { type: "RESET" }
   | { type: "DISMISS_RESET_REMINDER" }
   | { type: "RESTORE_PREVIOUS" }
+  | { type: "RESUME_SESSION"; session: SavedSession }
   | { type: "SET_ERROR"; error: string };
 
 export interface Group {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useReducer } from "react";
+import { useEffect, useMemo, useReducer, useRef, useState } from "react";
 import Uploader from "@/components/Uploader";
 import AccountColumnPicker from "@/components/AccountColumnPicker";
 import AccountSection from "@/components/AccountSection";
@@ -17,6 +17,15 @@ import {
 import { STATUS_CYCLE } from "@/lib/status";
 import { exportToXlsx } from "@/lib/exportXlsx";
 import { saveReviewCsv } from "@/lib/exportCsv";
+import {
+  type PersistedSession,
+  clearSession,
+  exportSessionFile,
+  loadSession,
+  readSessionFile,
+  relativeTimeFrom,
+  saveSession,
+} from "@/lib/persistence";
 
 function reducer(state: State, action: Action): State {
   switch (action.type) {
@@ -105,6 +114,20 @@ function reducer(state: State, action: Action): State {
         previousSession: null,
       };
     }
+    case "RESUME_SESSION": {
+      const s = action.session;
+      return {
+        fileName: s.fileName,
+        rows: s.rows,
+        headers: s.headers,
+        accountColumn: s.accountColumn,
+        statusByRowId: s.statusByRowId,
+        hiddenColumns: s.hiddenColumns,
+        parseError: null,
+        showResetReminder: false,
+        previousSession: null,
+      };
+    }
     case "SET_ERROR":
       return { ...initialState, parseError: action.error };
   }
@@ -177,6 +200,63 @@ export default function Page() {
     });
   };
 
+  const [pendingResume, setPendingResume] = useState<PersistedSession | null>(
+    null,
+  );
+  const [sessionImportError, setSessionImportError] = useState<string | null>(
+    null,
+  );
+  const sessionFileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!fileLoaded) {
+      setPendingResume(loadSession());
+    } else {
+      setPendingResume(null);
+    }
+  }, [fileLoaded]);
+
+  useEffect(() => {
+    if (!fileLoaded) return;
+    const t = window.setTimeout(() => saveSession(state), 400);
+    return () => window.clearTimeout(t);
+  }, [state, fileLoaded]);
+
+  const handleStartNewReview = () => {
+    clearSession();
+    dispatch({ type: "RESET" });
+  };
+
+  const handleResume = (session: PersistedSession) => {
+    dispatch({ type: "RESUME_SESSION", session });
+  };
+
+  const handleDiscardResume = () => {
+    clearSession();
+    setPendingResume(null);
+  };
+
+  const handleExportSession = async () => {
+    await exportSessionFile(state);
+  };
+
+  const handleSessionFileChange = async (
+    e: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setSessionImportError(null);
+    try {
+      const session = await readSessionFile(file);
+      dispatch({ type: "RESUME_SESSION", session });
+    } catch (err) {
+      setSessionImportError(
+        err instanceof Error ? err.message : "Could not read session file.",
+      );
+    }
+  };
+
   return (
     <main className="flex-1 flex flex-col">
       <header className="sticky top-0 z-10 bg-neutral-900/95 backdrop-blur border-b border-neutral-800">
@@ -203,6 +283,14 @@ export default function Page() {
                 )}
               </span>
               <div className="ml-auto flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleExportSession}
+                  className="px-3 py-1.5 rounded text-sm bg-neutral-800 hover:bg-neutral-700 text-neutral-200 border border-neutral-700"
+                  title="Download a JSON file you can re-upload to resume on another device"
+                >
+                  Save Session
+                </button>
                 <ExportButton
                   disabled={!exportReady}
                   onClick={handleExport}
@@ -259,6 +347,43 @@ export default function Page() {
           </div>
         )}
 
+        {!fileLoaded && pendingResume && (
+          <div className="rounded border border-blue-700 bg-blue-950/40 px-3 py-3 text-sm text-blue-100 flex flex-wrap items-start gap-3">
+            <div className="flex-1 min-w-0">
+              <p className="font-medium">Resume your saved session?</p>
+              <p className="text-xs text-blue-200/80 mt-1 truncate">
+                <span className="text-blue-100">{pendingResume.fileName}</span>
+                <span className="mx-2 text-blue-300/60">·</span>
+                {pendingResume.rows.length} rows
+                <span className="mx-2 text-blue-300/60">·</span>
+                saved {relativeTimeFrom(pendingResume.savedAt)}
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => handleResume(pendingResume)}
+                className="px-3 py-1.5 rounded text-xs font-medium bg-blue-600 hover:bg-blue-500 text-white"
+              >
+                Resume
+              </button>
+              <button
+                type="button"
+                onClick={handleDiscardResume}
+                className="px-3 py-1.5 rounded text-xs font-medium bg-neutral-800 hover:bg-neutral-700 text-neutral-200 border border-neutral-700"
+              >
+                Discard
+              </button>
+            </div>
+          </div>
+        )}
+
+        {sessionImportError && (
+          <div className="rounded border border-rose-700 bg-rose-950/50 px-3 py-2 text-sm text-rose-200">
+            {sessionImportError}
+          </div>
+        )}
+
         {!fileLoaded && (
           <Uploader
             onParsed={(fileName, rows, headers) =>
@@ -266,6 +391,26 @@ export default function Page() {
             }
             onError={(error) => dispatch({ type: "SET_ERROR", error })}
           />
+        )}
+
+        {!fileLoaded && (
+          <div className="text-xs text-neutral-400 flex flex-wrap items-center gap-2">
+            <span>Have a saved session file?</span>
+            <button
+              type="button"
+              onClick={() => sessionFileInputRef.current?.click()}
+              className="px-2 py-1 rounded border border-neutral-700 bg-neutral-900 hover:bg-neutral-800 text-neutral-200"
+            >
+              Load session (.json)
+            </button>
+            <input
+              ref={sessionFileInputRef}
+              type="file"
+              accept="application/json,.json"
+              onChange={handleSessionFileChange}
+              className="hidden"
+            />
+          </div>
         )}
 
         {fileLoaded && (
@@ -353,7 +498,7 @@ export default function Page() {
               </button>
               <button
                 type="button"
-                onClick={() => dispatch({ type: "RESET" })}
+                onClick={handleStartNewReview}
                 className="px-4 py-2 rounded text-sm font-medium bg-neutral-800 hover:bg-neutral-700 text-neutral-200 border border-neutral-700"
               >
                 Start New Review
