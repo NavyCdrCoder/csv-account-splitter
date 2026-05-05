@@ -10,6 +10,7 @@ export interface State {
   statusByRowId: Record<string, Status>;
   parseError: string | null;
   hiddenColumns: string[];
+  showResetReminder: boolean;
 }
 
 export type Action =
@@ -21,6 +22,7 @@ export type Action =
   | { type: "SHOW_COLUMN"; column: string }
   | { type: "SHOW_ALL_COLUMNS" }
   | { type: "RESET" }
+  | { type: "DISMISS_RESET_REMINDER" }
   | { type: "SET_ERROR"; error: string };
 
 export interface Group {
@@ -36,6 +38,7 @@ export const initialState: State = {
   statusByRowId: {},
   parseError: null,
   hiddenColumns: [],
+  showResetReminder: false,
 };
 
 export function makeRowId(accountValue: string, rowIndex: number) {

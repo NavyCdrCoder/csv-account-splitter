@@ -15,6 +15,7 @@ import {
 } from "@/lib/types";
 import { STATUS_CYCLE } from "@/lib/status";
 import { exportToXlsx } from "@/lib/exportXlsx";
+import { saveReviewCsv } from "@/lib/exportCsv";
 
 function reducer(state: State, action: Action): State {
   switch (action.type) {
@@ -28,6 +29,7 @@ function reducer(state: State, action: Action): State {
         statusByRowId: {},
         parseError: null,
         hiddenColumns: [],
+        showResetReminder: false,
       };
     }
     case "SET_ACCOUNT_COLUMN":
@@ -66,7 +68,9 @@ function reducer(state: State, action: Action): State {
     case "SHOW_ALL_COLUMNS":
       return { ...state, hiddenColumns: [] };
     case "RESET":
-      return initialState;
+      return { ...initialState, showResetReminder: true };
+    case "DISMISS_RESET_REMINDER":
+      return { ...state, showResetReminder: false };
     case "SET_ERROR":
       return { ...initialState, parseError: action.error };
   }
@@ -82,6 +86,7 @@ export default function Page() {
     statusByRowId,
     parseError,
     hiddenColumns,
+    showResetReminder,
   } = state;
 
   const groups: Group[] = useMemo(() => {
@@ -107,6 +112,17 @@ export default function Page() {
     exportToXlsx({ fileName, headers, groups, statusByRowId });
   };
 
+  const handleReviewComplete = async () => {
+    if (!fileName || !accountColumn) return;
+    await saveReviewCsv({
+      fileName,
+      headers,
+      rows,
+      accountColumn,
+      statusByRowId,
+    });
+  };
+
   return (
     <main className="flex-1 flex flex-col">
       <header className="sticky top-0 z-10 bg-neutral-900/95 backdrop-blur border-b border-neutral-800">
@@ -129,13 +145,6 @@ export default function Page() {
                 )}
               </span>
               <div className="ml-auto flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => dispatch({ type: "RESET" })}
-                  className="px-3 py-1.5 rounded text-sm bg-neutral-800 hover:bg-neutral-700 text-neutral-200"
-                >
-                  Reset
-                </button>
                 <ExportButton
                   disabled={!exportReady}
                   onClick={handleExport}
@@ -150,6 +159,27 @@ export default function Page() {
         {parseError && (
           <div className="rounded border border-rose-700 bg-rose-950/50 px-3 py-2 text-sm text-rose-200">
             {parseError}
+          </div>
+        )}
+
+        {!fileLoaded && showResetReminder && (
+          <div className="rounded border border-amber-700 bg-amber-950/40 px-3 py-3 text-sm text-amber-100 flex items-start gap-3">
+            <div className="flex-1">
+              <p className="font-medium">Save your previous review first.</p>
+              <p className="text-xs text-amber-200/80 mt-1">
+                If you haven&apos;t already, go back and click{" "}
+                <span className="font-medium">Review Complete</span> to save the
+                reviewed CSV before uploading a new file.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => dispatch({ type: "DISMISS_RESET_REMINDER" })}
+              className="text-amber-300 hover:text-amber-100 px-1 leading-none"
+              aria-label="Dismiss reminder"
+            >
+              ×
+            </button>
           </div>
         )}
 
@@ -226,6 +256,32 @@ export default function Page() {
                 }
               />
             ))}
+          </div>
+        )}
+
+        {fileLoaded && accountColumn && groups.length > 0 && (
+          <div className="flex flex-wrap items-center justify-between gap-3 pt-6 mt-2 border-t border-neutral-800">
+            <p className="text-xs text-neutral-400 max-w-md">
+              When you&apos;re done, click{" "}
+              <span className="text-neutral-200">Review Complete</span> to save
+              the reviewed CSV. Then start a new review to clear the dashboard.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={handleReviewComplete}
+                className="px-4 py-2 rounded text-sm font-medium bg-emerald-600 hover:bg-emerald-500 text-white"
+              >
+                Review Complete — Save CSV
+              </button>
+              <button
+                type="button"
+                onClick={() => dispatch({ type: "RESET" })}
+                className="px-4 py-2 rounded text-sm font-medium bg-neutral-800 hover:bg-neutral-700 text-neutral-200 border border-neutral-700"
+              >
+                Start New Review
+              </button>
+            </div>
           </div>
         )}
       </div>
