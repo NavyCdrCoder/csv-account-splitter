@@ -1,6 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useReducer, useState } from "react";
+import {
+  useEffect,
+  useMemo,
+  useReducer,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import Uploader from "@/components/Uploader";
 import AccountColumnPicker from "@/components/AccountColumnPicker";
 import AccountSection from "@/components/AccountSection";
@@ -24,6 +30,8 @@ import {
   relativeTimeFrom,
   saveSession,
 } from "@/lib/persistence";
+
+const noopSubscribe = () => () => {};
 
 function reducer(state: State, action: Action): State {
   switch (action.type) {
@@ -198,17 +206,19 @@ export default function Page() {
     });
   };
 
-  const [pendingResume, setPendingResume] = useState<PersistedSession | null>(
-    null,
+  // localStorage only exists on the client; stay null during prerender.
+  const isClient = useSyncExternalStore(
+    noopSubscribe,
+    () => true,
+    () => false,
   );
-
-  useEffect(() => {
-    if (!fileLoaded) {
-      setPendingResume(loadSession());
-    } else {
-      setPendingResume(null);
-    }
-  }, [fileLoaded]);
+  const [discardCount, setDiscardCount] = useState(0);
+  const pendingResume: PersistedSession | null = useMemo(
+    () => (isClient && !fileLoaded ? loadSession() : null),
+    // discardCount forces a re-read after the stored session is cleared.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [isClient, fileLoaded, discardCount],
+  );
 
   useEffect(() => {
     if (!fileLoaded) return;
@@ -227,7 +237,7 @@ export default function Page() {
 
   const handleDiscardResume = () => {
     clearSession();
-    setPendingResume(null);
+    setDiscardCount((n) => n + 1);
   };
 
   const handleSaveSession = async () => {
