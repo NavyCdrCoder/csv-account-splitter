@@ -21,6 +21,7 @@ import {
   type Status,
   autoPickAccountColumn,
   initialState,
+  isIgnoredAccount,
   makeRowId,
 } from "@/lib/types";
 import { STATUS_CYCLE } from "@/lib/status";
@@ -168,6 +169,7 @@ export default function Page() {
     const groupMap = new Map<string, Group["items"]>();
     rows.forEach((row, rowIndex) => {
       const account = row[accountColumn] ?? "";
+      if (isIgnoredAccount(account)) return;
       const rowId = makeRowId(account, rowIndex);
       if (!groupMap.has(account)) groupMap.set(account, []);
       groupMap.get(account)!.push({ row, rowId, rowIndex });
@@ -176,6 +178,12 @@ export default function Page() {
       .map(([name, items]) => ({ name, items }))
       .sort((a, b) => a.name.localeCompare(b.name));
   }, [rows, accountColumn]);
+
+  const shownRows = useMemo(
+    () => groups.reduce((n, g) => n + g.items.length, 0),
+    [groups],
+  );
+  const ignoredRows = accountColumn ? rows.length - shownRows : 0;
 
   const renderCols: RenderCol[] = useMemo(() => {
     if (!accountColumn) return [];
@@ -296,7 +304,16 @@ export default function Page() {
                 {fileName}
               </span>
               <span className="text-xs text-neutral-400 tabular-nums">
-                {rows.length} {rows.length === 1 ? "row" : "rows"}
+                {accountColumn ? shownRows : rows.length}{" "}
+                {(accountColumn ? shownRows : rows.length) === 1 ? "row" : "rows"}
+                {accountColumn && ignoredRows > 0 && (
+                  <span
+                    className="ml-1 text-neutral-500"
+                    title="Rows for accounts that don't report through Expensify"
+                  >
+                    ({ignoredRows} ignored)
+                  </span>
+                )}
                 {accountColumn && (
                   <>
                     <span className="mx-2 text-neutral-600">·</span>
