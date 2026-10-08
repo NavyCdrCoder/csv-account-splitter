@@ -13,6 +13,7 @@ import AccountColumnPicker from "@/components/AccountColumnPicker";
 import AccountSection from "@/components/AccountSection";
 import ExportButton from "@/components/ExportButton";
 import {
+  DEFAULT_HIDDEN_COLUMNS,
   type Action,
   type Group,
   type RenderCol,
@@ -46,7 +47,9 @@ function reducer(state: State, action: Action): State {
         accountColumn,
         statusByRowId: {},
         parseError: null,
-        hiddenColumns: [],
+        hiddenColumns: action.headers.filter(
+          (h) => DEFAULT_HIDDEN_COLUMNS.includes(h) && h !== accountColumn,
+        ),
         showResetReminder: false,
         previousSession: null,
       };

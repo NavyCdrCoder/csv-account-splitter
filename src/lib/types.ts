@@ -59,6 +59,15 @@ export const initialState: State = {
   previousSession: null,
 };
 
+// Columns hidden by default when a file is loaded. They are only hidden in the
+// UI (the "Hidden columns" bar restores them) and are still in every export.
+export const DEFAULT_HIDDEN_COLUMNS = [
+  "Modified Merchant",
+  "Posted date",
+  "Modified Sales date",
+  "Tag",
+];
+
 export function makeRowId(accountValue: string, rowIndex: number) {
   return `${accountValue}__${rowIndex}`;
 }
