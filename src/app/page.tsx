@@ -12,6 +12,7 @@ import Uploader from "@/components/Uploader";
 import AccountColumnPicker from "@/components/AccountColumnPicker";
 import AccountSection from "@/components/AccountSection";
 import ExportButton from "@/components/ExportButton";
+import SettingsDialog from "@/components/SettingsDialog";
 import {
   DEFAULT_HIDDEN_COLUMNS,
   type Action,
@@ -21,9 +22,14 @@ import {
   type Status,
   autoPickAccountColumn,
   initialState,
-  isIgnoredAccount,
   makeRowId,
 } from "@/lib/types";
+import {
+  getIgnoredAccounts,
+  getServerIgnoredAccounts,
+  isIgnoredAccount,
+  subscribeSettings,
+} from "@/lib/settings";
 import { STATUS_CYCLE } from "@/lib/status";
 import { exportToXlsx } from "@/lib/exportXlsx";
 import { saveReviewCsv, saveSessionCsv } from "@/lib/exportCsv";
@@ -164,12 +170,19 @@ export default function Page() {
     previousSession,
   } = state;
 
+  const ignoredAccounts = useSyncExternalStore(
+    subscribeSettings,
+    getIgnoredAccounts,
+    getServerIgnoredAccounts,
+  );
+  const [settingsOpen, setSettingsOpen] = useState(false);
+
   const groups: Group[] = useMemo(() => {
     if (!accountColumn) return [];
     const groupMap = new Map<string, Group["items"]>();
     rows.forEach((row, rowIndex) => {
       const account = row[accountColumn] ?? "";
-      if (isIgnoredAccount(account)) return;
+      if (isIgnoredAccount(account, ignoredAccounts)) return;
       const rowId = makeRowId(account, rowIndex);
       if (!groupMap.has(account)) groupMap.set(account, []);
       groupMap.get(account)!.push({ row, rowId, rowIndex });
@@ -177,7 +190,7 @@ export default function Page() {
     return Array.from(groupMap.entries())
       .map(([name, items]) => ({ name, items }))
       .sort((a, b) => a.name.localeCompare(b.name));
-  }, [rows, accountColumn]);
+  }, [rows, accountColumn, ignoredAccounts]);
 
   const shownRows = useMemo(
     () => groups.reduce((n, g) => n + g.items.length, 0),
@@ -325,6 +338,14 @@ export default function Page() {
               <div className="ml-auto flex items-center gap-2">
                 <button
                   type="button"
+                  onClick={() => setSettingsOpen(true)}
+                  className="px-3 py-1.5 rounded text-sm bg-neutral-800 hover:bg-neutral-700 text-neutral-200 border border-neutral-700"
+                  title="Settings, including ignored accounts"
+                >
+                  Settings
+                </button>
+                <button
+                  type="button"
                   onClick={handleSaveSession}
                   disabled={!accountColumn}
                   className="px-3 py-1.5 rounded text-sm bg-neutral-800 hover:bg-neutral-700 text-neutral-200 border border-neutral-700 disabled:text-neutral-500 disabled:hover:bg-neutral-800 disabled:cursor-not-allowed"
@@ -339,8 +360,28 @@ export default function Page() {
               </div>
             </>
           )}
+          {!fileLoaded && (
+            <div className="ml-auto">
+              <button
+                type="button"
+                onClick={() => setSettingsOpen(true)}
+                className="px-3 py-1.5 rounded text-sm bg-neutral-800 hover:bg-neutral-700 text-neutral-200 border border-neutral-700"
+                title="Settings, including ignored accounts"
+              >
+                Settings
+              </button>
+            </div>
+          )}
         </div>
       </header>
+
+      {settingsOpen && (
+        <SettingsDialog
+          ignoredAccounts={ignoredAccounts}
+          suggestions={groups.map((g) => g.name)}
+          onClose={() => setSettingsOpen(false)}
+        />
+      )}
 
       <div className="max-w-6xl mx-auto w-full px-4 py-6 flex-1 flex flex-col gap-6">
         {parseError && (

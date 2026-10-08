@@ -68,15 +68,6 @@ export const DEFAULT_HIDDEN_COLUMNS = [
   "Tag",
 ];
 
-// Accounts that don't report through Expensify. Their rows are left out of the
-// account sections and the XLSX export (the saved CSVs still keep every row).
-export const IGNORED_ACCOUNTS = ["dwayne@ezoic.com", "accounting@ezoic.com"];
-
-export function isIgnoredAccount(account: string): boolean {
-  const a = account.trim().toLowerCase();
-  return IGNORED_ACCOUNTS.includes(a);
-}
-
 export function makeRowId(accountValue: string, rowIndex: number) {
   return `${accountValue}__${rowIndex}`;
 }
