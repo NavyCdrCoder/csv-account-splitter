@@ -17,19 +17,34 @@ interface SaveFilePickerWindow {
   }>;
 }
 
-export async function saveReviewCsv({
-  fileName,
-  headers,
-  rows,
-  accountColumn,
-  statusByRowId,
-}: {
+interface ReviewCsvInput {
   fileName: string;
   headers: string[];
   rows: Row[];
   accountColumn: string;
   statusByRowId: Record<string, Status>;
-}): Promise<"saved" | "canceled"> {
+}
+
+export function saveReviewCsv(input: ReviewCsvInput): Promise<"saved" | "canceled"> {
+  const dateStr = new Date().toISOString().slice(0, 10);
+  const baseName = input.fileName.replace(/\.csv$/i, "");
+  return writeStatusCsv(input, `${baseName}_reviewed_${dateStr}.csv`);
+}
+
+// Mid-review snapshot: same CSV as Review complete, with a local-time,
+// minute-resolution filename so multiple saves in a day don't collide.
+export function saveSessionCsv(input: ReviewCsvInput): Promise<"saved" | "canceled"> {
+  const d = new Date();
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const stamp = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}_${pad(d.getHours())}-${pad(d.getMinutes())}`;
+  const baseName = input.fileName.replace(/\.csv$/i, "");
+  return writeStatusCsv(input, `${baseName}_session_${stamp}.csv`);
+}
+
+async function writeStatusCsv(
+  { headers, rows, accountColumn, statusByRowId }: ReviewCsvInput,
+  defaultName: string,
+): Promise<"saved" | "canceled"> {
   const csvRows = rows.map((row, i) => {
     const account = row[accountColumn] ?? "";
     const rowId = makeRowId(account, i);
@@ -38,10 +53,6 @@ export async function saveReviewCsv({
   });
 
   const csv = Papa.unparse(csvRows, { columns: [...headers, "Status"] });
-
-  const dateStr = new Date().toISOString().slice(0, 10);
-  const baseName = fileName.replace(/\.csv$/i, "");
-  const defaultName = `${baseName}_reviewed_${dateStr}.csv`;
 
   const w = window as unknown as SaveFilePickerWindow;
   if (typeof w.showSaveFilePicker === "function") {

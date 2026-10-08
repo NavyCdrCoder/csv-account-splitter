@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useReducer, useRef, useState } from "react";
+import { useEffect, useMemo, useReducer, useState } from "react";
 import Uploader from "@/components/Uploader";
 import AccountColumnPicker from "@/components/AccountColumnPicker";
 import AccountSection from "@/components/AccountSection";
@@ -16,13 +16,11 @@ import {
 } from "@/lib/types";
 import { STATUS_CYCLE } from "@/lib/status";
 import { exportToXlsx } from "@/lib/exportXlsx";
-import { saveReviewCsv } from "@/lib/exportCsv";
+import { saveReviewCsv, saveSessionCsv } from "@/lib/exportCsv";
 import {
   type PersistedSession,
   clearSession,
-  exportSessionFile,
   loadSession,
-  readSessionFile,
   relativeTimeFrom,
   saveSession,
 } from "@/lib/persistence";
@@ -203,10 +201,6 @@ export default function Page() {
   const [pendingResume, setPendingResume] = useState<PersistedSession | null>(
     null,
   );
-  const [sessionImportError, setSessionImportError] = useState<string | null>(
-    null,
-  );
-  const sessionFileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!fileLoaded) {
@@ -236,25 +230,15 @@ export default function Page() {
     setPendingResume(null);
   };
 
-  const handleExportSession = async () => {
-    await exportSessionFile(state);
-  };
-
-  const handleSessionFileChange = async (
-    e: React.ChangeEvent<HTMLInputElement>,
-  ) => {
-    const file = e.target.files?.[0];
-    e.target.value = "";
-    if (!file) return;
-    setSessionImportError(null);
-    try {
-      const session = await readSessionFile(file);
-      dispatch({ type: "RESUME_SESSION", session });
-    } catch (err) {
-      setSessionImportError(
-        err instanceof Error ? err.message : "Could not read session file.",
-      );
-    }
+  const handleSaveSession = async () => {
+    if (!fileName || !accountColumn) return;
+    await saveSessionCsv({
+      fileName,
+      headers,
+      rows,
+      accountColumn,
+      statusByRowId,
+    });
   };
 
   return (
@@ -285,9 +269,10 @@ export default function Page() {
               <div className="ml-auto flex items-center gap-2">
                 <button
                   type="button"
-                  onClick={handleExportSession}
-                  className="px-3 py-1.5 rounded text-sm bg-neutral-800 hover:bg-neutral-700 text-neutral-200 border border-neutral-700"
-                  title="Download a JSON file you can re-upload to resume on another device"
+                  onClick={handleSaveSession}
+                  disabled={!accountColumn}
+                  className="px-3 py-1.5 rounded text-sm bg-neutral-800 hover:bg-neutral-700 text-neutral-200 border border-neutral-700 disabled:text-neutral-500 disabled:hover:bg-neutral-800 disabled:cursor-not-allowed"
+                  title="Download a timestamped CSV snapshot of every row and its current status"
                 >
                   Save Session
                 </button>
@@ -378,12 +363,6 @@ export default function Page() {
           </div>
         )}
 
-        {sessionImportError && (
-          <div className="rounded border border-rose-700 bg-rose-950/50 px-3 py-2 text-sm text-rose-200">
-            {sessionImportError}
-          </div>
-        )}
-
         {!fileLoaded && (
           <Uploader
             onParsed={(fileName, rows, headers) =>
@@ -391,26 +370,6 @@ export default function Page() {
             }
             onError={(error) => dispatch({ type: "SET_ERROR", error })}
           />
-        )}
-
-        {!fileLoaded && (
-          <div className="text-xs text-neutral-400 flex flex-wrap items-center gap-2">
-            <span>Have a saved session file?</span>
-            <button
-              type="button"
-              onClick={() => sessionFileInputRef.current?.click()}
-              className="px-2 py-1 rounded border border-neutral-700 bg-neutral-900 hover:bg-neutral-800 text-neutral-200"
-            >
-              Load session (.json)
-            </button>
-            <input
-              ref={sessionFileInputRef}
-              type="file"
-              accept="application/json,.json"
-              onChange={handleSessionFileChange}
-              className="hidden"
-            />
-          </div>
         )}
 
         {fileLoaded && (

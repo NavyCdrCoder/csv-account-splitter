@@ -51,7 +51,7 @@ export function saveSession(state: State): void {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
   } catch {
     // Quota exceeded or storage unavailable — fail silently. The user
-    // can still export the session manually.
+    // can still save a session CSV manually.
   }
 }
 
@@ -85,84 +85,4 @@ export function relativeTimeFrom(iso: string): string {
   const hr = Math.floor(min / 60);
   if (hr < 24) return `${hr}h ago`;
   return `${Math.floor(hr / 24)}d ago`;
-}
-
-export async function exportSessionFile(state: State): Promise<"saved" | "canceled"> {
-  const payload = buildPersistedSession(state);
-  if (!payload) return "canceled";
-  const json = JSON.stringify(payload, null, 2);
-  const dateStr = new Date().toISOString().slice(0, 10);
-  const baseName = payload.fileName.replace(/\.csv$/i, "");
-  const defaultName = `${baseName}_session_${dateStr}.json`;
-
-  interface SaveFilePickerWindow {
-    showSaveFilePicker?: (options: {
-      suggestedName?: string;
-      types?: Array<{ description?: string; accept: Record<string, string[]> }>;
-    }) => Promise<{
-      createWritable: () => Promise<{
-        write: (data: string) => Promise<void>;
-        close: () => Promise<void>;
-      }>;
-    }>;
-  }
-  const w = window as unknown as SaveFilePickerWindow;
-  if (typeof w.showSaveFilePicker === "function") {
-    try {
-      const handle = await w.showSaveFilePicker({
-        suggestedName: defaultName,
-        types: [
-          {
-            description: "Session JSON",
-            accept: { "application/json": [".json"] },
-          },
-        ],
-      });
-      const writable = await handle.createWritable();
-      await writable.write(json);
-      await writable.close();
-      return "saved";
-    } catch (e) {
-      if (e instanceof DOMException && e.name === "AbortError") return "canceled";
-    }
-  }
-
-  const blob = new Blob([json], { type: "application/json" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = defaultName;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-  return "saved";
-}
-
-export function readSessionFile(file: File): Promise<PersistedSession> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      try {
-        const parsed: unknown = JSON.parse(String(reader.result));
-        if (!isPersistedSession(parsed)) {
-          reject(new Error("Not a valid session file."));
-          return;
-        }
-        if (parsed.version !== SCHEMA_VERSION) {
-          reject(
-            new Error(
-              `Session file version ${parsed.version} is incompatible (expected ${SCHEMA_VERSION}).`,
-            ),
-          );
-          return;
-        }
-        resolve(parsed);
-      } catch (e) {
-        reject(e instanceof Error ? e : new Error(String(e)));
-      }
-    };
-    reader.onerror = () => reject(reader.error ?? new Error("Read failed."));
-    reader.readAsText(file);
-  });
 }
