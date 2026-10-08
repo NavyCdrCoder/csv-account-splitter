@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { memo, useState } from "react";
 import type { Group, RenderCol, Status } from "@/lib/types";
 import RowStatusToggle from "./RowStatusToggle";
 import RowStatusDropdown from "./RowStatusDropdown";
@@ -12,16 +12,18 @@ interface Props {
   statusByRowId: Record<string, Status>;
   onCycle: (rowId: string) => void;
   onSetStatus: (rowId: string, status: Status) => void;
+  onSetGroupStatus: (rowIds: string[], status: Status) => void;
   onHideColumn: (column: string) => void;
 }
 
-export default function AccountSection({
+function AccountSection({
   group,
   renderCols,
   defaultExpanded,
   statusByRowId,
   onCycle,
   onSetStatus,
+  onSetGroupStatus,
   onHideColumn,
 }: Props) {
   const [expanded, setExpanded] = useState(defaultExpanded);
@@ -39,28 +41,46 @@ export default function AccountSection({
         allFound ? "border-emerald-600" : "border-neutral-800"
       }`}
     >
-      <button
-        type="button"
-        onClick={() => setExpanded((e) => !e)}
-        className={`w-full flex items-center justify-between gap-3 px-3 py-2 text-left transition-colors ${
+      <div
+        className={`flex items-center transition-colors ${
           allFound
             ? "bg-emerald-700 hover:bg-emerald-600 text-emerald-50"
             : "bg-neutral-900 hover:bg-neutral-800"
         }`}
-        aria-expanded={expanded}
       >
-        <span className="font-medium truncate">{displayName}</span>
-        <span
-          className={`text-xs shrink-0 tabular-nums ${
-            allFound ? "text-emerald-100" : "text-neutral-400"
-          }`}
+        <button
+          type="button"
+          onClick={() => setExpanded((e) => !e)}
+          className="flex-1 min-w-0 flex items-center justify-between gap-3 px-3 py-2 text-left"
+          aria-expanded={expanded}
         >
-          {group.items.length} {rowLabel}
-          <span className="ml-2 inline-block w-3 text-center">
-            {expanded ? "−" : "+"}
+          <span className="font-medium truncate">{displayName}</span>
+          <span
+            className={`text-xs shrink-0 tabular-nums ${
+              allFound ? "text-emerald-100" : "text-neutral-400"
+            }`}
+          >
+            {group.items.length} {rowLabel}
+            <span className="ml-2 inline-block w-3 text-center">
+              {expanded ? "−" : "+"}
+            </span>
           </span>
-        </span>
-      </button>
+        </button>
+        <button
+          type="button"
+          onClick={() =>
+            onSetGroupStatus(
+              group.items.map(({ rowId }) => rowId),
+              "found",
+            )
+          }
+          disabled={allFound}
+          className="mr-2 px-2 py-0.5 rounded text-xs border border-emerald-600 text-emerald-200 hover:bg-emerald-800/60 disabled:opacity-40 disabled:cursor-default disabled:hover:bg-transparent"
+          title={`Mark all ${group.items.length} rows for ${displayName} as Found`}
+        >
+          Mark all Found
+        </button>
+      </div>
       {expanded && (
         <div className="overflow-x-auto">
           <table className="w-full text-xs font-mono border-collapse">
@@ -152,3 +172,25 @@ export default function AccountSection({
     </section>
   );
 }
+
+// Skip re-rendering a section unless its own rows' statuses changed, so
+// editing one account doesn't re-render every row in every other account.
+export default memo(AccountSection, (prev, next) => {
+  if (
+    prev.group !== next.group ||
+    prev.renderCols !== next.renderCols ||
+    prev.defaultExpanded !== next.defaultExpanded ||
+    prev.onCycle !== next.onCycle ||
+    prev.onSetStatus !== next.onSetStatus ||
+    prev.onSetGroupStatus !== next.onSetGroupStatus ||
+    prev.onHideColumn !== next.onHideColumn
+  ) {
+    return false;
+  }
+  if (prev.statusByRowId === next.statusByRowId) return true;
+  return prev.group.items.every(
+    ({ rowId }) =>
+      (prev.statusByRowId[rowId] ?? "unchecked") ===
+      (next.statusByRowId[rowId] ?? "unchecked"),
+  );
+});

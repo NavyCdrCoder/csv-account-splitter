@@ -28,6 +28,7 @@ export type Action =
   | { type: "SET_ACCOUNT_COLUMN"; column: string }
   | { type: "CYCLE_STATUS"; rowId: string }
   | { type: "SET_STATUS"; rowId: string; status: Status }
+  | { type: "SET_STATUS_BULK"; rowIds: string[]; status: Status }
   | { type: "HIDE_COLUMN"; column: string }
   | { type: "SHOW_COLUMN"; column: string }
   | { type: "SHOW_ALL_COLUMNS" }

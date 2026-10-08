@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  useCallback,
   useEffect,
   useMemo,
   useReducer,
@@ -16,6 +17,7 @@ import {
   type Group,
   type RenderCol,
   type State,
+  type Status,
   autoPickAccountColumn,
   initialState,
   makeRowId,
@@ -74,6 +76,11 @@ function reducer(state: State, action: Action): State {
           [action.rowId]: action.status,
         },
       };
+    case "SET_STATUS_BULK": {
+      const next = { ...state.statusByRowId };
+      for (const rowId of action.rowIds) next[rowId] = action.status;
+      return { ...state, statusByRowId: next };
+    }
     case "HIDE_COLUMN":
       if (action.column === state.accountColumn) return state;
       return state.hiddenColumns.includes(action.column)
@@ -225,6 +232,25 @@ export default function Page() {
     const t = window.setTimeout(() => saveSession(state), 400);
     return () => window.clearTimeout(t);
   }, [state, fileLoaded]);
+
+  const handleCycle = useCallback(
+    (rowId: string) => dispatch({ type: "CYCLE_STATUS", rowId }),
+    [],
+  );
+  const handleSetStatus = useCallback(
+    (rowId: string, status: Status) =>
+      dispatch({ type: "SET_STATUS", rowId, status }),
+    [],
+  );
+  const handleSetGroupStatus = useCallback(
+    (rowIds: string[], status: Status) =>
+      dispatch({ type: "SET_STATUS_BULK", rowIds, status }),
+    [],
+  );
+  const handleHideColumn = useCallback(
+    (column: string) => dispatch({ type: "HIDE_COLUMN", column }),
+    [],
+  );
 
   const handleStartNewReview = () => {
     clearSession();
@@ -436,15 +462,10 @@ export default function Page() {
                 renderCols={renderCols}
                 defaultExpanded={defaultExpanded}
                 statusByRowId={statusByRowId}
-                onCycle={(rowId) =>
-                  dispatch({ type: "CYCLE_STATUS", rowId })
-                }
-                onSetStatus={(rowId, status) =>
-                  dispatch({ type: "SET_STATUS", rowId, status })
-                }
-                onHideColumn={(column) =>
-                  dispatch({ type: "HIDE_COLUMN", column })
-                }
+                onCycle={handleCycle}
+                onSetStatus={handleSetStatus}
+                onSetGroupStatus={handleSetGroupStatus}
+                onHideColumn={handleHideColumn}
               />
             ))}
           </div>
